@@ -38,6 +38,7 @@ Open the browser link that Streamlit provides.
 - Use consistent, diffuse lighting and a fixed camera mount.
 - Capture representative examples of good ceramics and defect types.
 - Common defect categories include cracks, chips, glaze problems, and contamination.
+- This project supports multi-class defect labels: each class can represent a specific defect type.
 
 ## Pseudo-labeling unlabeled images
 
@@ -62,6 +63,7 @@ If you do not yet have labeled data, you can bootstrap labels using the current 
    ```bash
    streamlit run label_review.py
    ```
+   The review tool now displays actual class names if your dataset config includes a `names` block.
 6. Train or fine-tune with the pseudo-labeled dataset:
    ```bash
    python train.py --data data_pseudo.yaml --model yolov26n.pt --epochs 50

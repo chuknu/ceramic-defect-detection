@@ -28,6 +28,13 @@ class DefectModel:
         self.conf = float(conf)
         self.device = select_device(device)
         self.model = YOLO(str(self.model_path))
+        self.class_names = self._load_class_names()
+
+    def _load_class_names(self) -> dict[int, str]:
+        names = getattr(self.model, "names", {}) or {}
+        if isinstance(names, dict):
+            return {int(k): str(v) for k, v in names.items()}
+        return {index: str(name) for index, name in enumerate(names)}
 
     def predict(self, frame: Any) -> tuple[Any, list[dict[str, Any]]]:
         results = self.model(frame, conf=self.conf, device=self.device)
@@ -53,9 +60,11 @@ class DefectModel:
             )
 
             for bbox, class_id, score in zip(xyxy, classes, scores):
+                class_id = int(class_id)
                 defects.append(
                     {
-                        "label": self.get_label(int(class_id)),
+                        "class_id": class_id,
+                        "label": self.get_label(class_id),
                         "confidence": float(score),
                         "bbox": [float(value) for value in bbox],
                     }
@@ -64,4 +73,4 @@ class DefectModel:
         return annotated_frame, defects
 
     def get_label(self, class_id: int) -> str:
-        return f"defect_{class_id}"
+        return self.class_names.get(class_id, f"defect_{class_id}")

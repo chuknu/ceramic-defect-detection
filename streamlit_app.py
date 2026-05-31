@@ -123,6 +123,7 @@ if "eval_results" not in st.session_state:
 
 frame_area = st.empty()
 summary_area = st.empty()
+counts_area = st.empty()
 history_area = st.empty()
 eval_area = st.empty()
 
@@ -223,6 +224,17 @@ else:
                     summary_area.metric("Total frames processed", st.session_state.total_frames)
                     summary_area.metric("Total defects detected", st.session_state.total_defects)
 
+                    class_counts: dict[str, int] = {}
+                    for defect in defects:
+                        class_counts[defect["label"]] = class_counts.get(defect["label"], 0) + 1
+
+                    if class_counts:
+                        counts_area.table(
+                            [{"defect_type": label, "count": count} for label, count in class_counts.items()]
+                        )
+                    else:
+                        counts_area.info("No defects detected in this image.")
+
                     st.session_state.history.append(
                         {
                             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -265,6 +277,17 @@ else:
                             summary_area.metric("Defects this frame", defect_count)
                             summary_area.metric("Total frames processed", st.session_state.total_frames)
                             summary_area.metric("Total defects detected", st.session_state.total_defects)
+
+                            class_counts: dict[str, int] = {}
+                            for defect in defects:
+                                class_counts[defect["label"]] = class_counts.get(defect["label"], 0) + 1
+
+                            if class_counts:
+                                counts_area.table(
+                                    [{"defect_type": label, "count": count} for label, count in class_counts.items()]
+                                )
+                            else:
+                                counts_area.info("No defects detected in this frame.")
 
                             st.session_state.history.append(
                                 {

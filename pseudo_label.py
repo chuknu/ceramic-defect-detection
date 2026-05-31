@@ -125,7 +125,7 @@ def process_image(
     labels: list[str] = []
     for defect in defects:
         bbox = defect["bbox"]
-        class_id = int(defect["label"].split("_")[-1])
+        class_id = int(defect.get("class_id", 0))
         x_center, y_center, width, height = xyxy_to_yolo(bbox, image.shape[1], image.shape[0])
         labels.append(f"{class_id} {x_center:.6f} {y_center:.6f} {width:.6f} {height:.6f}")
 

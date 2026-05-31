@@ -10,6 +10,30 @@ import cv2
 import numpy as np
 import streamlit as st
 
+
+def load_class_names(config_path: Path) -> dict[int, str]:
+    names: dict[int, str] = {}
+    if not config_path.exists():
+        return names
+
+    in_names = False
+    for line in config_path.read_text().splitlines():
+        stripped = line.strip()
+        if not in_names:
+            if stripped.startswith("names:"):
+                in_names = True
+            continue
+        if not line.startswith((" ", "\t")):
+            break
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        key = key.strip()
+        value = value.strip()
+        if key.isdigit():
+            names[int(key)] = value
+    return names
+
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif"}
 
 
@@ -44,7 +68,7 @@ def yolo_to_xyxy(label: str, width: int, height: int) -> tuple[int, int, int, in
     return x1, y1, x2, y2
 
 
-def draw_boxes(image: np.ndarray, labels: Iterable[str]) -> np.ndarray:
+def draw_boxes(image: np.ndarray, labels: Iterable[str], class_names: dict[int, str]) -> np.ndarray:
     annotated = image.copy()
     height, width = annotated.shape[:2]
     for label in labels:
@@ -56,11 +80,15 @@ def draw_boxes(image: np.ndarray, labels: Iterable[str]) -> np.ndarray:
         except ValueError:
             continue
         class_id = parts[0]
+        try:
+            class_name = class_names.get(int(class_id), class_id)
+        except ValueError:
+            class_name = class_id
         color = (255, 0, 0)
         cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
         cv2.putText(
             annotated,
-            f"{class_id}",
+            f"{class_name}",
             (max(x1, 0), max(y1 - 10, 0)),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.6,
@@ -100,6 +128,8 @@ def main() -> int:
     )
 
     data_dir = Path(st.sidebar.text_input("Dataset base directory", "datasets/pseudo"))
+    data_config = Path(st.sidebar.text_input("Dataset config file", "data_pseudo.yaml"))
+    class_names = load_class_names(data_config)
     split = st.sidebar.selectbox("Split", ["train", "val"])
 
     image_pairs = collect_image_list(data_dir, split)
@@ -107,6 +137,13 @@ def main() -> int:
         st.warning("No labeled images found under the chosen dataset directory and split.")
         st.sidebar.write("Expected structure: datasets/pseudo/images/train and datasets/pseudo/labels/train")
         return 0
+
+    if class_names:
+        st.sidebar.markdown("**Class mapping**")
+        for class_id, name in sorted(class_names.items()):
+            st.sidebar.write(f"{class_id}: {name}")
+    else:
+        st.sidebar.info("No class names loaded from config. Labels will display numeric IDs.")
 
     filenames = [path.name for path, _ in image_pairs]
     if "label_review_index" not in st.session_state:
@@ -132,11 +169,11 @@ def main() -> int:
         "YOLO label text",
         value=format_labels(labels),
         height=240,
-        key=f"label_text_{selected_name}",
+        key=f"label_text_{selected_index}",
     )
 
     image = load_image(image_path)
-    annotated = draw_boxes(image, label_text.splitlines())
+    annotated = draw_boxes(image, label_text.splitlines(), class_names)
 
     col1, col2 = st.columns([1, 1])
     with col1:
