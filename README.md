@@ -58,7 +58,11 @@ If you do not yet have labeled data, you can bootstrap labels using the current 
 4. Review and correct the generated `.txt` label files in:
    - `datasets/pseudo/labels/train`
    - `datasets/pseudo/labels/val`
-5. Train or fine-tune with the pseudo-labeled dataset:
+5. Optionally use the label review UI:
+   ```bash
+   streamlit run label_review.py
+   ```
+6. Train or fine-tune with the pseudo-labeled dataset:
    ```bash
    python train.py --data data_pseudo.yaml --model yolov26n.pt --epochs 50
    ```
@@ -72,6 +76,7 @@ These scripts generate a YOLO dataset structure and a `data_pseudo.yaml` config 
 - `streamlit_app.py` — simple dashboard with live stream and defect summary.
 - `capture_images.py` — helper to capture unlabeled images from camera or video.
 - `pseudo_label.py` — generate pseudo-labels for YOLO training from unlabeled images.
+- `label_review.py` — interactive Streamlit UI to review and correct pseudo-labels.
 - `train.py` — fine-tune a defect detection model with a YOLO dataset config.
 - `data_pseudo.yaml` — dataset config for pseudo-labeled training data.
 - `requirements.txt` — required Python packages.
