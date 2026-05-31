@@ -39,6 +39,17 @@ Open the browser link that Streamlit provides.
 - Capture representative examples of good ceramics and defect types.
 - Common defect categories include cracks, chips, glaze problems, and contamination.
 - This project supports multi-class defect labels: each class can represent a specific defect type.
+- You can keep a history of checkpoint runs in `runs/train/<experiment>/weights` and select a trained version in the dashboard.
+
+## Batch image inference
+
+To run a folder of images and save annotated outputs automatically:
+
+```bash
+python defect_detect.py path/to/image_folder --model runs/train/ceramic_defects/weights/best.pt --output output/annotated
+```
+
+The script will preserve relative folder structure and write annotated images into `output/annotated`.
 
 ## Pseudo-labeling unlabeled images
 

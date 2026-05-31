@@ -12,7 +12,10 @@ from defect_model import DefectModel
 
 
 def find_local_models(directory: Path) -> list[str]:
-    return sorted(str(path.name) for path in directory.glob("*.pt"))
+    model_paths = []
+    model_paths.extend(directory.glob("*.pt"))
+    model_paths.extend(Path("runs/train").glob("**/*.pt"))
+    return sorted(str(path.relative_to(directory)) for path in model_paths if path.is_file())
 
 
 def evaluate_yolo_model(

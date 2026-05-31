@@ -17,13 +17,13 @@ IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif"}
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run defect detection on an image, video file, or USB camera source."
+        description="Run defect detection on an image, video file, folder of images, or USB camera source."
     )
     parser.add_argument(
         "source",
         nargs="?",
         default=None,
-        help="Path to an image or video file. Leave empty to use the USB camera.",
+        help="Path to an image, video file, or directory of images. Leave empty to use the USB camera.",
     )
     parser.add_argument(
         "--model",
@@ -54,6 +54,14 @@ def parse_args() -> argparse.Namespace:
 
 def is_image_file(path: Path) -> bool:
     return path.suffix.lower() in IMAGE_EXTENSIONS
+
+
+def find_images(source_dir: Path) -> list[Path]:
+    return sorted(
+        path
+        for path in source_dir.rglob("*")
+        if path.is_file() and is_image_file(path)
+    )
 
 
 def load_image(source: Path) -> any:
@@ -91,7 +99,34 @@ def main() -> int:
         print(f"Error: {exc}")
         return 1
 
-    if args.source is None or (Path(args.source).exists() and not is_image_file(Path(args.source))):
+    source_path = Path(args.source) if args.source else None
+    if source_path is not None and source_path.exists() and source_path.is_dir():
+        image_paths = find_images(source_path)
+        if not image_paths:
+            print(f"No supported image files found in directory: {source_path}")
+            return 1
+
+        output_files = []
+        total_defects = 0
+        print(f"Running batch inference on {len(image_paths)} images from {source_path}")
+
+        for index, image_path in enumerate(image_paths, start=1):
+            frame = load_image(image_path)
+            annotated, defects = detector.predict(frame)
+            relative_path = image_path.relative_to(source_path)
+            output_path = args.output / relative_path
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            cv2.imwrite(str(output_path), annotated)
+            defect_count = len(defects)
+            total_defects += defect_count
+            output_files.append(output_path)
+            print(f"[{index}/{len(image_paths)}] {relative_path}: {defect_count} defects -> {output_path}")
+
+        print(f"Batch inference complete. Saved {len(output_files)} annotated images to {args.output}")
+        print(f"Total defects detected: {total_defects}")
+        return 0
+
+    if args.source is None or (source_path is not None and source_path.exists() and not is_image_file(source_path)):
         capture = open_capture(args.source, args.camera_index)
         if not capture.isOpened():
             print("Error: unable to open the camera or video source.")
