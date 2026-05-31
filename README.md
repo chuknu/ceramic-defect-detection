@@ -69,6 +69,33 @@ If you do not yet have labeled data, you can bootstrap labels using the current 
 
 These scripts generate a YOLO dataset structure and a `data_pseudo.yaml` config file for training.
 
+## Evaluate validation metrics
+
+Once you have a trained model, evaluate it on your validation dataset.
+If you do not yet have a `runs/train/.../weights/best.pt`, use a model checkpoint such as `yolov26n.pt` instead.
+
+```bash
+python evaluate.py --weights yolov26n.pt --data data_pseudo.yaml --batch 16 --imgsz 640 --plots
+```
+
+After training, replace the weights path with your trained checkpoint, for example:
+
+```bash
+python evaluate.py --weights runs/train/ceramic_defects/weights/best.pt --data data_pseudo.yaml --batch 16 --imgsz 640 --plots
+```
+
+If you use a different experiment name, replace `ceramic_defects` with the name you passed to `train.py`.
+
+This prints:
+- mean precision
+- mean recall
+- mAP@0.5
+- mAP@0.5:0.95
+- per-class precision / recall / AP
+- the detection confusion matrix
+
+If `--plots` is used, a confusion matrix image is also saved under `runs/val`.
+
 ## File overview
 
 - `defect_detect.py` — CLI runner for image/video/camera detection.
@@ -77,6 +104,7 @@ These scripts generate a YOLO dataset structure and a `data_pseudo.yaml` config 
 - `capture_images.py` — helper to capture unlabeled images from camera or video.
 - `pseudo_label.py` — generate pseudo-labels for YOLO training from unlabeled images.
 - `label_review.py` — interactive Streamlit UI to review and correct pseudo-labels.
+- `evaluate.py` — evaluate validation metrics and confusion matrices for a trained defect model.
 - `train.py` — fine-tune a defect detection model with a YOLO dataset config.
 - `data_pseudo.yaml` — dataset config for pseudo-labeled training data.
 - `requirements.txt` — required Python packages.

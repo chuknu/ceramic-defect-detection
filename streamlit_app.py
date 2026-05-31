@@ -1,16 +1,52 @@
 #!/usr/bin/env python3
 import time
 from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
 import streamlit as st
+from ultralytics import YOLO
 
 from defect_model import DefectModel
 
 
 def find_local_models(directory: Path) -> list[str]:
     return sorted(str(path.name) for path in directory.glob("*.pt"))
+
+
+def evaluate_yolo_model(
+    model_path: str,
+    data_path: str,
+    imgsz: int,
+    batch: int,
+    device: str,
+    conf: float,
+    iou: float,
+    save_dir: Path,
+) -> tuple[Any, Any]:
+    model = YOLO(model_path)
+    custom = {
+        "data": data_path,
+        "imgsz": imgsz,
+        "batch": batch,
+        "device": device,
+        "conf": conf,
+        "iou": iou,
+        "plots": True,
+        "visualize": False,
+        "save_txt": False,
+        "save_json": False,
+        "save_conf": False,
+        "task": "detect",
+        "mode": "val",
+    }
+    args_dict = {**model.overrides, **custom}
+    validator_cls = model._smart_load("validator")
+    save_dir.mkdir(parents=True, exist_ok=True)
+    validator = validator_cls(args=args_dict, save_dir=save_dir, _callbacks=model.callbacks)
+    validator(model=model.model)
+    return validator.metrics, validator.confusion_matrix
 
 
 st.set_page_config(page_title="Ceramic Defect Dashboard", layout="wide")
@@ -21,37 +57,50 @@ default_model = models[0] if models else "yolov26n.pt"
 
 with st.sidebar:
     st.header("Settings")
+    dashboard_mode = st.selectbox("Dashboard mode", ["Detection", "Evaluation"])
     if models:
         model_choice = st.selectbox("YOLO model file", models, index=0)
         model_path = str(Path.cwd() / model_choice)
     else:
         model_path = st.text_input("YOLO model path", default_model)
-    confidence = st.slider("Confidence threshold", 0.0, 1.0, 0.25, 0.05)
-    source_type = st.selectbox(
-        "Input source",
-        ["Built-in camera", "USB camera", "Video file", "Image file"],
-    )
-    camera_index = st.number_input("Camera index", min_value=0, max_value=5, value=0, step=1)
-    video_path = st.text_input("Video file path", "")
-    image_path = st.text_input("Image file path", "")
-    image_file = None
-    if source_type == "Image file":
-        image_file = st.file_uploader(
-            "Upload an image file",
-            type=["jpg", "jpeg", "png", "bmp", "tiff", "tif"],
+
+    if dashboard_mode == "Detection":
+        confidence = st.slider("Confidence threshold", 0.0, 1.0, 0.25, 0.05)
+        source_type = st.selectbox(
+            "Input source",
+            ["Built-in camera", "USB camera", "Video file", "Image file"],
         )
+        camera_index = st.number_input("Camera index", min_value=0, max_value=5, value=0, step=1)
+        video_path = st.text_input("Video file path", "")
+        image_path = st.text_input("Image file path", "")
+        image_file = None
+        if source_type == "Image file":
+            image_file = st.file_uploader(
+                "Upload an image file",
+                type=["jpg", "jpeg", "png", "bmp", "tiff", "tif"],
+            )
 
-    if source_type == "Video file":
-        st.info("Enter a local video path or use the production stream file path.")
-    elif source_type == "Image file":
-        st.info("Upload an image or provide a local image path.")
+        if source_type == "Video file":
+            st.info("Enter a local video path or use the production stream file path.")
+        elif source_type == "Image file":
+            st.info("Upload an image or provide a local image path.")
+        else:
+            st.info("Select the correct camera index for your built-in or USB camera.")
+
+        if st.button("Start"):
+            st.session_state.running = True
+        if st.button("Stop"):
+            st.session_state.running = False
     else:
-        st.info("Select the correct camera index for your built-in or USB camera.")
-
-    if st.button("Start"):
-        st.session_state.running = True
-    if st.button("Stop"):
-        st.session_state.running = False
+        validation_data = st.text_input("Validation data config", "data_pseudo.yaml")
+        eval_imgsz = st.number_input("Image size", min_value=64, max_value=2048, value=640, step=32)
+        eval_batch = st.number_input("Batch size", min_value=1, max_value=64, value=16, step=1)
+        eval_device = st.text_input("Device", "auto")
+        eval_conf = st.slider("Confidence threshold", 0.0, 1.0, 0.001, 0.001)
+        eval_iou = st.slider("NMS IoU threshold", 0.0, 1.0, 0.6, 0.05)
+        normalize_confusion = st.checkbox("Normalize confusion matrix", value=True)
+        if st.button("Evaluate"):
+            st.session_state.evaluate = True
 
     st.markdown("---")
     st.markdown(
@@ -67,105 +116,171 @@ if "total_defects" not in st.session_state:
     st.session_state.total_defects = 0
 if "total_frames" not in st.session_state:
     st.session_state.total_frames = 0
+if "evaluate" not in st.session_state:
+    st.session_state.evaluate = False
+if "eval_results" not in st.session_state:
+    st.session_state.eval_results = None
 
 frame_area = st.empty()
 summary_area = st.empty()
 history_area = st.empty()
+eval_area = st.empty()
 
-if st.session_state.running:
-    try:
-        model = DefectModel(model_path, conf=confidence, device="auto")
-    except FileNotFoundError as exc:
-        st.error(str(exc))
-        st.session_state.running = False
+if dashboard_mode == "Evaluation":
+    if st.session_state.evaluate:
+        try:
+            metrics, confusion = evaluate_yolo_model(
+                model_path,
+                validation_data,
+                imgsz=eval_imgsz,
+                batch=eval_batch,
+                device=eval_device,
+                conf=eval_conf,
+                iou=eval_iou,
+                save_dir=Path("runs/val"),
+            )
+            st.session_state.eval_results = (metrics, confusion)
+            st.session_state.evaluate = False
+        except FileNotFoundError as exc:
+            st.error(str(exc))
+            st.session_state.evaluate = False
+        except Exception as exc:
+            st.error(f"Evaluation failed: {exc}")
+            st.session_state.evaluate = False
+
+    if st.session_state.eval_results is not None:
+        metrics, confusion = st.session_state.eval_results
+        box = metrics.box
+
+        eval_area.subheader("Validation Metrics")
+        cols = st.columns(4)
+        cols[0].metric("Precision", f"{box.mp:.4f}")
+        cols[1].metric("Recall", f"{box.mr:.4f}")
+        cols[2].metric("mAP@0.5", f"{box.map50:.4f}")
+        cols[3].metric("mAP@0.5:0.95", f"{box.map:.4f}")
+
+        class_rows = []
+        names = getattr(metrics, "names", {}) or {}
+        class_names = [names.get(i, str(i)) for i in range(box.nc)]
+        for i, label in enumerate(class_names):
+            p, r, ap50, ap = box.class_result(i)
+            class_rows.append(
+                {
+                    "class": label,
+                    "precision": f"{p:.4f}",
+                    "recall": f"{r:.4f}",
+                    "AP50": f"{ap50:.4f}",
+                    "AP": f"{ap:.4f}",
+                }
+            )
+
+        st.subheader("Per-class metrics")
+        st.dataframe(class_rows)
+
+        st.subheader("Confusion matrix")
+        try:
+            confusion_df = confusion.to_df()
+            st.dataframe(confusion_df)
+        except Exception as exc:
+            st.warning(f"Could not render confusion matrix table: {exc}")
     else:
-        if source_type == "Image file":
-            frame = None
-            if image_file is not None:
-                image_bytes = image_file.read()
-                np_arr = np.frombuffer(image_bytes, np.uint8)
-                frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-            elif image_path:
-                if not Path(image_path).exists():
-                    st.error("Please provide a valid image file path.")
-                    st.session_state.running = False
-                else:
-                    frame = cv2.imread(str(Path(image_path)))
-            else:
-                st.error("Upload an image or provide a valid local image path.")
-                st.session_state.running = False
+        eval_area.info("Press Evaluate to run validation on the selected dataset.")
 
-            if frame is not None:
-                annotated_frame, defects = model.predict(frame)
-                rgb_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
-                frame_area.image(rgb_frame, caption="Image defect detection", use_column_width=True)
-
-                defect_count = len(defects)
-                st.session_state.total_frames += 1
-                st.session_state.total_defects += defect_count
-
-                summary_area.metric("Defects detected", defect_count)
-                summary_area.metric("Total frames processed", st.session_state.total_frames)
-                summary_area.metric("Total defects detected", st.session_state.total_defects)
-
-                st.session_state.history.append(
-                    {
-                        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-                        "frame": st.session_state.total_frames,
-                        "defects": defect_count,
-                    }
-                )
-                history_area.dataframe(st.session_state.history[-10:], use_container_width=True)
+else:
+    if st.session_state.running:
+        try:
+            model = DefectModel(model_path, conf=confidence, device="auto")
+        except FileNotFoundError as exc:
+            st.error(str(exc))
             st.session_state.running = False
         else:
-            source = 0 if source_type == "USB camera" else video_path
-            if source_type == "Video file" and not Path(video_path).exists():
-                st.error("Please provide a valid video file path.")
+            if source_type == "Image file":
+                frame = None
+                if image_file is not None:
+                    image_bytes = image_file.read()
+                    np_arr = np.frombuffer(image_bytes, np.uint8)
+                    frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+                elif image_path:
+                    if not Path(image_path).exists():
+                        st.error("Please provide a valid image file path.")
+                        st.session_state.running = False
+                    else:
+                        frame = cv2.imread(str(Path(image_path)))
+                else:
+                    st.error("Upload an image or provide a valid local image path.")
+                    st.session_state.running = False
+
+                if frame is not None:
+                    annotated_frame, defects = model.predict(frame)
+                    rgb_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
+                    frame_area.image(rgb_frame, caption="Image defect detection", use_column_width=True)
+
+                    defect_count = len(defects)
+                    st.session_state.total_frames += 1
+                    st.session_state.total_defects += defect_count
+
+                    summary_area.metric("Defects detected", defect_count)
+                    summary_area.metric("Total frames processed", st.session_state.total_frames)
+                    summary_area.metric("Total defects detected", st.session_state.total_defects)
+
+                    st.session_state.history.append(
+                        {
+                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                            "frame": st.session_state.total_frames,
+                            "defects": defect_count,
+                        }
+                    )
+                    history_area.dataframe(st.session_state.history[-10:], use_container_width=True)
                 st.session_state.running = False
             else:
-                if source_type in {"Built-in camera", "USB camera"}:
-                    source = camera_index
-                else:
-                    source = video_path
-
-                cap = cv2.VideoCapture(source)
-                if not cap.isOpened():
-                    st.error(f"Unable to open source: {source}")
+                source = 0 if source_type == "USB camera" else video_path
+                if source_type == "Video file" and not Path(video_path).exists():
+                    st.error("Please provide a valid video file path.")
                     st.session_state.running = False
                 else:
-                    while st.session_state.running:
-                        ret, frame = cap.read()
-                        if not ret:
-                            st.warning("Stream ended or camera disconnected.")
-                            break
+                    if source_type in {"Built-in camera", "USB camera"}:
+                        source = camera_index
+                    else:
+                        source = video_path
 
-                        annotated_frame, defects = model.predict(frame)
-                        rgb_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
-                        frame_area.image(rgb_frame, caption="Live defect detection", use_column_width=True)
+                    cap = cv2.VideoCapture(source)
+                    if not cap.isOpened():
+                        st.error(f"Unable to open source: {source}")
+                        st.session_state.running = False
+                    else:
+                        while st.session_state.running:
+                            ret, frame = cap.read()
+                            if not ret:
+                                st.warning("Stream ended or camera disconnected.")
+                                break
 
-                        defect_count = len(defects)
-                        st.session_state.total_frames += 1
-                        st.session_state.total_defects += defect_count
+                            annotated_frame, defects = model.predict(frame)
+                            rgb_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
+                            frame_area.image(rgb_frame, caption="Live defect detection", use_column_width=True)
 
-                        summary_area.metric("Defects this frame", defect_count)
-                        summary_area.metric("Total frames processed", st.session_state.total_frames)
-                        summary_area.metric("Total defects detected", st.session_state.total_defects)
+                            defect_count = len(defects)
+                            st.session_state.total_frames += 1
+                            st.session_state.total_defects += defect_count
 
-                        st.session_state.history.append(
-                            {
-                                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-                                "frame": st.session_state.total_frames,
-                                "defects": defect_count,
-                            }
-                        )
+                            summary_area.metric("Defects this frame", defect_count)
+                            summary_area.metric("Total frames processed", st.session_state.total_frames)
+                            summary_area.metric("Total defects detected", st.session_state.total_defects)
 
-                        history_area.dataframe(st.session_state.history[-10:], use_container_width=True)
+                            st.session_state.history.append(
+                                {
+                                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                                    "frame": st.session_state.total_frames,
+                                    "defects": defect_count,
+                                }
+                            )
 
-                        time.sleep(0.05)
+                            history_area.dataframe(st.session_state.history[-10:], use_container_width=True)
 
-                    cap.release()
-else:
-    frame_area.info("Press Start to begin defect detection.")
-    summary_area.write(
-        "Once you press Start, live frames and defect stats will appear here."
-    )
+                            time.sleep(0.05)
+
+                        cap.release()
+    else:
+        frame_area.info("Press Start to begin defect detection.")
+        summary_area.write(
+            "Once you press Start, live frames and defect stats will appear here."
+        )
