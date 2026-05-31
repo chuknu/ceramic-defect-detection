@@ -1,0 +1,4 @@
+train: datasets/pseudo/images/train
+val: datasets/pseudo/images/val
+names:
+  0: defect

@@ -13,15 +13,15 @@ python -m pip install -r requirements.txt
 
 - USB camera live detection:
   ```bash
-  python defect_detect.py --model yolov8n.pt
+  python defect_detect.py --model yolov26n.pt
   ```
 - Video file detection:
   ```bash
-  python defect_detect.py path/to/video.mp4 --model yolov8n.pt
+  python defect_detect.py path/to/video.mp4 --model yolov26n.pt
   ```
 - Image file detection:
   ```bash
-  python defect_detect.py path/to/image.png --model yolov8n.pt
+  python defect_detect.py path/to/image.png --model yolov26n.pt
   ```
 
 ## Run the dashboard
@@ -39,11 +39,41 @@ Open the browser link that Streamlit provides.
 - Capture representative examples of good ceramics and defect types.
 - Common defect categories include cracks, chips, glaze problems, and contamination.
 
+## Pseudo-labeling unlabeled images
+
+If you do not yet have labeled data, you can bootstrap labels using the current defect model:
+
+1. Put your unlabeled images in a folder such as `datasets/raw_images`.
+2. Optionally capture new images directly from a camera:
+   ```bash
+   python capture_images.py --output-dir datasets/raw_images
+   ```
+   - Press `SPACE` to save a frame.
+   - Press `q` or `Esc` to quit.
+   - Use `--auto` and `--interval 1.0` for automatic capture.
+3. Run the pseudo-label script:
+   ```bash
+   python pseudo_label.py --source-dir datasets/raw_images --output-dir datasets/pseudo --model yolov26n.pt --conf 0.25 --split 0.8 --save-annotated
+   ```
+4. Review and correct the generated `.txt` label files in:
+   - `datasets/pseudo/labels/train`
+   - `datasets/pseudo/labels/val`
+5. Train or fine-tune with the pseudo-labeled dataset:
+   ```bash
+   python train.py --data data_pseudo.yaml --model yolov26n.pt --epochs 50
+   ```
+
+These scripts generate a YOLO dataset structure and a `data_pseudo.yaml` config file for training.
+
 ## File overview
 
 - `defect_detect.py` — CLI runner for image/video/camera detection.
 - `defect_model.py` — YOLO model wrapper and prediction helper.
 - `streamlit_app.py` — simple dashboard with live stream and defect summary.
+- `capture_images.py` — helper to capture unlabeled images from camera or video.
+- `pseudo_label.py` — generate pseudo-labels for YOLO training from unlabeled images.
+- `train.py` — fine-tune a defect detection model with a YOLO dataset config.
+- `data_pseudo.yaml` — dataset config for pseudo-labeled training data.
 - `requirements.txt` — required Python packages.
  
 ## Publish to GitHub
