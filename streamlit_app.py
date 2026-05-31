@@ -16,7 +16,7 @@ st.set_page_config(page_title="Ceramic Defect Dashboard", layout="wide")
 st.title("Ceramic Defect Detection Dashboard")
 
 models = find_local_models(Path.cwd())
-default_model = models[0] if models else "yolov8n.pt"
+default_model = models[0] if models else "yolov26n.pt"
 
 with st.sidebar:
     st.header("Settings")
