@@ -1,0 +1,7 @@
+train: datasets/pseudo/images/train
+val: datasets/pseudo/images/val
+names:
+  0: crack
+  1: chip
+  2: glaze
+  3: contamination
