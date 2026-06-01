@@ -1,0 +1,116 @@
+{
+  "tiles": [
+    {
+      "file": "1280px-Ancient_Graeco-Italian_ceramic%3B_Attic_black-glaze_cup_Wellcome_L0012647.jpg",
+      "classes": [
+        "vase"
+      ]
+    },
+    {
+      "file": "1280px-Ancient_Graeco-Italian_ceramic%3B_Attic_black-glaze_cup_Wellcome_L0012648.jpg",
+      "classes": [
+        "vase"
+      ]
+    },
+    {
+      "file": "Crack_between_bathtub_and_tiles_ready_for_silicone_caulking.jpg",
+      "classes": [
+        "bird"
+      ]
+    },
+    {
+      "file": "Flow_blue_bowl.jpg",
+      "classes": [
+        "vase"
+      ]
+    }
+  ],
+  "non_tiles": [
+    {
+      "file": "1280px-2024.11.03_Household_Tableware_1930s_Clay_Engobe_Ceramic_Glaze_Raka%C5%AD_Valo%C5%BEyn_District_Minsk_Region_Belarus.jpg",
+      "classes": [
+        "toilet",
+        "vase"
+      ]
+    },
+    {
+      "file": "1280px-Brown_glazed_tiles.jpg",
+      "classes": [
+        "train",
+        "truck"
+      ]
+    },
+    {
+      "file": "1280px-Cobalt_texture.jpg",
+      "classes": [
+        "person"
+      ]
+    },
+    {
+      "file": "1280px-Haddock_and_chips_at_The_Plough_in_Lower_Beeding%2C_West_Sussex%2C_England_01.jpg",
+      "classes": [
+        "cup",
+        "sandwich",
+        "dining table",
+        "wine glass",
+        "bottle",
+        "bowl"
+      ]
+    },
+    {
+      "file": "1280px-Haddock_and_chips_at_The_Plough_in_Lower_Beeding%2C_West_Sussex%2C_England_02.jpg",
+      "classes": [
+        "orange"
+      ]
+    },
+    {
+      "file": "Flow_blue_Alcock_plate.jpg",
+      "classes": [
+        "dining table",
+        "clock"
+      ]
+    },
+    {
+      "file": "Glaze_Spraying_di_Kilang_Claytan.png",
+      "classes": [
+        "bowl"
+      ]
+    },
+    {
+      "file": "lossy-page1-1280px-BERNARD_PICARELLO_IN_BATHROOM_OF_HIS_HOME_AT_112_MOORE_STREET._HE_BLAMES_CRACK_IN_BATHROOM_TILE_ON_AIRCRAFT..._-_NARA_-_548457.tif.jpg",
+      "classes": [
+        "person"
+      ]
+    },
+    {
+      "file": "1280px-BERNARD_PICARELLO_IN_BATHROOM_OF_HIS_HOME_AT_112_MOORE_STREET._HE_BLAMES_CRACK_IN_BATHROOM_TILE_ON_AIRCRAFT..._-_NARA_-_548457.jpg",
+      "classes": [
+        "person"
+      ]
+    },
+    {
+      "file": "lossless-page1-960px-Cermets_4_High_Temperature_Firing_of_Steatite_Chip_placing_substrate_in_firing_kilns_2012_002_5979.tiff.png",
+      "classes": [
+        "person"
+      ]
+    }
+  ],
+  "uncertain": [
+    "1280px-Crack_in_the_Floor.jpg",
+    "1280px-EsplanadeAveTilesCracks.jpg",
+    "1280px-Glasierte_Keramikvilla_im_historischen_Baustil-2.jpg",
+    "1280px-Intel_C43201-5_chip_%2815597750510%29.jpg",
+    "1280px-Intel_C43202_chip_%2815597749830%29.jpg",
+    "1280px-L_substitution_tiling.svg.png",
+    "1280px-Museo_Zuloaga.jpg",
+    "A_Computer_Chip_Trivet_20070124.jpg",
+    "Ceramic_House_with_Green_Glaze_humanoid_column.jpg",
+    "page1-500px-Cement_pipe_and_tile_-_advantages_of_cement_for_pipe_and_tile%2C_methods_of_manufacture%2C_tests%2C_cost%2C_etc_%28IA_gri_33125000021408%29.pdf.jpg",
+    "page1-960px-Experiments_on_liquid_immersion_natural_convection_cooling_of_leadless_chip_carriers_mounted_on_ceramic_substrate._%28IA_experimentsonliq00paje%29.pdf.jpg",
+    "page1-960px-Hollow_tile_for_the_home._%28IA_hollowtileforhom00holl%29.pdf.jpg",
+    "1280px-Chip_Off_Defect.png",
+    "1280px-Cracks_%28152155209%29.jpeg",
+    "1280px-IBM_51F1784ESD_ceramic_square_substrate.jpg",
+    "Decapsulated_ceramic_chip.jpg"
+  ]
+}
