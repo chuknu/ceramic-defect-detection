@@ -13,3 +13,4 @@ venv/
 # Generated training and evaluation outputs
 runs/
 *.cache
+datasets
