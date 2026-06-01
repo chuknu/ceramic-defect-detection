@@ -238,6 +238,73 @@ else:
                     else:
                         counts_area.info("No defects detected in this image.")
 
+                    # Human-in-the-loop: allow accept/reject/relabel for each detection
+                    st.subheader("Review detections")
+                    corrected_labels = []
+                    if defects:
+                        cols = st.columns(len(defects))
+                    else:
+                        cols = st.columns(1)
+
+                    for i, defect in enumerate(defects):
+                        col = cols[i] if defects else cols[0]
+                        with col:
+                            st.write(f"#{i+1}: {defect['label']} ({defect['confidence']:.2f})")
+                            action = st.selectbox(f"Action {i+1}", ["Accept", "Reject", "Relabel"], key=f"action_{st.session_state.total_frames}_{i}")
+                            new_label = None
+                            if action == "Relabel":
+                                class_options = list(model.class_names.values()) if hasattr(model, "class_names") else []
+                                if class_options:
+                                    new_label = st.selectbox(f"New label {i+1}", class_options, key=f"relabel_{st.session_state.total_frames}_{i}")
+
+                            if action != "Reject":
+                                class_id = defect.get("class_id", 0)
+                                label_to_save = new_label if new_label else defect.get("label")
+                                corrected_labels.append((class_id, label_to_save, defect["bbox"]))
+
+                    if st.button("Save corrections"):
+                        from pathlib import Path
+                        import json
+                        save_dir = Path("datasets/hitl")
+                        labels_dir = save_dir / "labels"
+                        annotated_dir = save_dir / "annotated"
+                        save_dir.mkdir(parents=True, exist_ok=True)
+                        labels_dir.mkdir(parents=True, exist_ok=True)
+                        annotated_dir.mkdir(parents=True, exist_ok=True)
+
+                        image_id = f"img_{st.session_state.total_frames}"
+                        label_path = labels_dir / f"{image_id}.txt"
+                        lines = []
+                        for cid, lbl, bbox in corrected_labels:
+                            if isinstance(lbl, str) and lbl in model.class_names.values():
+                                rid = next((k for k, v in model.class_names.items() if v == lbl), cid)
+                            else:
+                                rid = cid
+                            x1, y1, x2, y2 = bbox
+                            h, w = annotated_frame.shape[:2]
+                            x_center = (x1 + x2) / 2.0 / w
+                            y_center = (y1 + y2) / 2.0 / h
+                            bw = (x2 - x1) / w
+                            bh = (y2 - y1) / h
+                            lines.append(f"{rid} {x_center:.6f} {y_center:.6f} {bw:.6f} {bh:.6f}")
+
+                        label_path.write_text("\n".join(lines) + ("\n" if lines else ""))
+                        annotated_path = annotated_dir / f"{image_id}.jpg"
+                        cv2.imwrite(str(annotated_path), annotated_frame)
+
+                        log_path = save_dir / "hitl_log.jsonl"
+                        entry = {
+                            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                            "image_id": image_id,
+                            "label_file": str(label_path),
+                            "annotated": str(annotated_path),
+                            "corrected_count": len(lines),
+                        }
+                        with log_path.open("a") as fh:
+                            fh.write(json.dumps(entry) + "\n")
+
+                        st.success(f"Saved {len(lines)} corrected labels to {label_path}")
+
                     st.session_state.history.append(
                         {
                             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -291,6 +358,73 @@ else:
                                 )
                             else:
                                 counts_area.info("No defects detected in this frame.")
+
+                            # HITL controls per-frame
+                            st.subheader("Review detections (live)")
+                            corrected_labels = []
+                            if defects:
+                                cols = st.columns(len(defects))
+                            else:
+                                cols = st.columns(1)
+
+                            for i, defect in enumerate(defects):
+                                col = cols[i] if defects else cols[0]
+                                with col:
+                                    st.write(f"#{i+1}: {defect['label']} ({defect['confidence']:.2f})")
+                                    action = st.selectbox(f"Action live {i+1}", ["Accept", "Reject", "Relabel"], key=f"action_live_{st.session_state.total_frames}_{i}")
+                                    new_label = None
+                                    if action == "Relabel":
+                                        class_options = list(model.class_names.values()) if hasattr(model, "class_names") else []
+                                        if class_options:
+                                            new_label = st.selectbox(f"New label live {i+1}", class_options, key=f"relabel_live_{st.session_state.total_frames}_{i}")
+
+                                    if action != "Reject":
+                                        class_id = defect.get("class_id", 0)
+                                        label_to_save = new_label if new_label else defect.get("label")
+                                        corrected_labels.append((class_id, label_to_save, defect["bbox"]))
+
+                            if st.button("Save live corrections"):
+                                from pathlib import Path
+                                import json
+                                save_dir = Path("datasets/hitl")
+                                labels_dir = save_dir / "labels"
+                                annotated_dir = save_dir / "annotated"
+                                save_dir.mkdir(parents=True, exist_ok=True)
+                                labels_dir.mkdir(parents=True, exist_ok=True)
+                                annotated_dir.mkdir(parents=True, exist_ok=True)
+
+                                image_id = f"live_{st.session_state.total_frames}"
+                                label_path = labels_dir / f"{image_id}.txt"
+                                lines = []
+                                for cid, lbl, bbox in corrected_labels:
+                                    if isinstance(lbl, str) and lbl in model.class_names.values():
+                                        rid = next((k for k, v in model.class_names.items() if v == lbl), cid)
+                                    else:
+                                        rid = cid
+                                    x1, y1, x2, y2 = bbox
+                                    h, w = annotated_frame.shape[:2]
+                                    x_center = (x1 + x2) / 2.0 / w
+                                    y_center = (y1 + y2) / 2.0 / h
+                                    bw = (x2 - x1) / w
+                                    bh = (y2 - y1) / h
+                                    lines.append(f"{rid} {x_center:.6f} {y_center:.6f} {bw:.6f} {bh:.6f}")
+
+                                label_path.write_text("\n".join(lines) + ("\n" if lines else ""))
+                                annotated_path = annotated_dir / f"{image_id}.jpg"
+                                cv2.imwrite(str(annotated_path), annotated_frame)
+
+                                log_path = save_dir / "hitl_log.jsonl"
+                                entry = {
+                                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                                    "image_id": image_id,
+                                    "label_file": str(label_path),
+                                    "annotated": str(annotated_path),
+                                    "corrected_count": len(lines),
+                                }
+                                with log_path.open("a") as fh:
+                                    fh.write(json.dumps(entry) + "\n")
+
+                                st.success(f"Saved {len(lines)} corrected labels to {label_path}")
 
                             st.session_state.history.append(
                                 {

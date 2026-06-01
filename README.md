@@ -51,6 +51,16 @@ python defect_detect.py path/to/image_folder --model runs/train/ceramic_defects/
 
 The script will preserve relative folder structure and write annotated images into `output/annotated`.
 
+## Extract frames from video
+
+Use `frame_extractor.py` to extract frames from a video at a fixed interval and optionally dedupe near-duplicate frames via histogram correlation:
+
+```bash
+python frame_extractor.py --input input.mp4 --output datasets/raw_images --interval 0.5 --dedupe 0.95
+```
+
+This is useful to generate many candidate images from factory video footage for pseudo-labeling and review.
+
 ## Pseudo-labeling unlabeled images
 
 If you do not yet have labeled data, you can bootstrap labels using the current defect model:
@@ -75,6 +85,11 @@ If you do not yet have labeled data, you can bootstrap labels using the current 
    streamlit run label_review.py
    ```
    The review tool now displays actual class names if your dataset config includes a `names` block.
+
+   Human-in-the-loop (HITL): the main dashboard also supports quick Accept / Reject / Relabel controls during detection.
+   - Open the dashboard (`streamlit run streamlit_app.py`) and choose `Detection` mode.
+   - After running detection on an image or live stream, use the per-detection controls and click `Save corrections` to store corrected labels under `datasets/hitl`.
+   - Corrections are saved as YOLO `.txt` files and annotated images, and logged in `datasets/hitl/hitl_log.jsonl`.
 6. Train or fine-tune with the pseudo-labeled dataset:
    ```bash
    python train.py --data data_pseudo.yaml --model yolov26n.pt --epochs 50
