@@ -61,6 +61,26 @@ python frame_extractor.py --input input.mp4 --output datasets/raw_images --inter
 
 This is useful to generate many candidate images from factory video footage for pseudo-labeling and review.
 
+## Download images from URLs
+
+If you have a list of image URLs, use `download_images.py` to fetch them into `datasets/raw_images`:
+
+```bash
+python download_images.py --urls urls.txt --output datasets/raw_images
+```
+
+`urls.txt` should contain one image URL per line.
+
+## Prepare dataset structure
+
+Use `prepare_dataset.py` to copy images and labels into the YOLO-style train/val structure and generate `data_pseudo.yaml`:
+
+```bash
+python prepare_dataset.py --images datasets/raw_images --labels datasets/hitl/labels --output datasets/pseudo --split 0.8
+```
+
+The script will write `datasets/pseudo/images/{train,val}` and `datasets/pseudo/labels/{train,val}` and create `data_pseudo.yaml`.
+
 ## Pseudo-labeling unlabeled images
 
 If you do not yet have labeled data, you can bootstrap labels using the current defect model:
