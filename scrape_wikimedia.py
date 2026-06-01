@@ -21,14 +21,17 @@ import requests
 
 WIKIMEDIA_API = "https://commons.wikimedia.org/w/api.php"
 HEADERS = {"User-Agent": "ceramic-defect-bot/0.1 (https://example.com)"}
+VIDEO_EXTENSIONS = {"webm", "ogv", "ogg", "mp4", "mov", "mkv"}
+TILE_KEYWORDS = {"tile", "tiles", "floor tile", "wall tile", "ceramic tile", "glazed tile", "tile crack", "tile chip", "ceramic tile crack", "ceramic tile chip"}
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Scrape Wikimedia Commons for permissively licensed images")
+    parser = argparse.ArgumentParser(description="Scrape Wikimedia Commons for permissively licensed tiles and media")
     parser.add_argument("--queries", type=str, required=True, help="Comma-separated search queries")
-    parser.add_argument("--per-query", type=int, default=10, help="Max images per query")
-    parser.add_argument("--output", type=Path, default=Path("datasets/web_images"), help="Output base dir")
+    parser.add_argument("--per-query", type=int, default=10, help="Max media items per query")
+    parser.add_argument("--output", type=Path, default=Path("datasets/tile_images"), help="Output base dir")
     parser.add_argument("--allow-cc", action="store_true", help="Also allow Creative Commons licensed images (CC-BY, CC-BY-SA). Attribution metadata will be saved.")
+    parser.add_argument("--include-videos", action="store_true", help="Download video files in addition to images.")
     return parser.parse_args()
 
 
@@ -53,6 +56,17 @@ def is_permissive_license(extmeta: dict, allow_cc: bool = False) -> bool:
     return False
 
 
+def title_matches_tile_keywords(title: str) -> bool:
+    if not title:
+        return False
+    lower = title.lower()
+    return any(keyword in lower for keyword in TILE_KEYWORDS)
+
+
+def is_video_url(url: str) -> bool:
+    return any(url.lower().endswith(f".{ext}") for ext in VIDEO_EXTENSIONS)
+
+
 def search_images(query: str, limit: int = 10) -> list[dict]:
     params = {
         "action": "query",
@@ -62,7 +76,7 @@ def search_images(query: str, limit: int = 10) -> list[dict]:
         "gsrsearch": query,
         "gsrnamespace": "6",
         "gsrlimit": str(limit),
-        "iiprop": "url|extmetadata",
+        "iiprop": "url|extmetadata|mime",
         "iiurlwidth": "1024",
     }
     resp = requests.get(WIKIMEDIA_API, params=params, timeout=15, headers=HEADERS)
@@ -77,13 +91,14 @@ def search_images(query: str, limit: int = 10) -> list[dict]:
         info = imageinfo[0]
         url = info.get("thumburl") or info.get("url")
         extmeta = info.get("extmetadata", {})
-        results.append({"title": page.get("title"), "url": url, "extmeta": extmeta})
+        mime = info.get("mime", "")
+        results.append({"title": page.get("title"), "url": url, "extmeta": extmeta, "mime": mime})
     return results
 
 
-def download_image(url: str, dest: Path) -> bool:
+def download_file(url: str, dest: Path) -> bool:
     try:
-        r = requests.get(url, timeout=20, headers=HEADERS)
+        r = requests.get(url, timeout=30, headers=HEADERS)
         r.raise_for_status()
         dest.write_bytes(r.content)
         return True
@@ -112,28 +127,42 @@ def main() -> int:
             extmeta = item.get("extmeta", {})
             if not is_permissive_license(extmeta, allow_cc=args.allow_cc):
                 continue
+            title = item.get("title", "")
+            if not title_matches_tile_keywords(title):
+                continue
             url = item.get("url")
             if not url:
                 continue
-            # derive filename
+
+            mime = item.get("mime", "")
+            if mime.startswith("application/pdf"):
+                continue
+            is_video = is_video_url(url) or mime.startswith("video")
+            if is_video and not args.include_videos:
+                continue
+            if not is_video and mime.startswith("video") and not args.include_videos:
+                continue
+
             fname = Path(url.split("/")[-1].split(":")[-1])
             dest = out_dir / fname
-            ok = download_image(url, dest)
+            ok = download_file(url, dest)
             if not ok:
                 continue
             meta = {
-                "title": item.get("title"),
+                "title": title,
                 "url": url,
                 "file": str(dest),
+                "mime": mime,
                 "extmeta": {k: (v.get("value") if isinstance(v, dict) else v) for k, v in extmeta.items()},
             }
             with meta_path.open("a") as fh:
                 fh.write(json.dumps(meta) + "\n")
             saved += 1
             total += 1
-            print(f"Saved: {dest}")
+            media_type = "video" if is_video else "image"
+            print(f"Saved {media_type}: {dest}")
 
-        print(f"Saved {saved} permissively-licensed images for query '{q}' to {out_dir}")
+        print(f"Saved {saved} permissively-licensed tiles for query '{q}' to {out_dir}")
 
     print(f"Done. Total saved: {total}")
     return 0
