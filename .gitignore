@@ -9,3 +9,7 @@ venv/
 .idea/
 .vscode/
 .DS_Store
+
+# Generated training and evaluation outputs
+runs/
+*.cache

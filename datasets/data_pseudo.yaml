@@ -1,5 +1,5 @@
-train: datasets/pseudo/images/train
-val: datasets/pseudo/images/val
+train: /Users/test/Desktop/python/datasets/pseudo_web/images/train
+val: /Users/test/Desktop/python/datasets/pseudo_web/images/val
 names:
   0: crack
   1: chip
